@@ -27,8 +27,14 @@ server <- function(input,output) {
   info <- eventReactive(input$submit, {
     polis.clust(clean(read.csv(input$partic$datapath)))
   })
+  info_new <- eventReactive(input$submit, {
+    polis.clust(clean(read.csv(input$partic$datapath)), 
+                boosted=TRUE, 
+                comment_id = input$comm_id_adjust,
+                coeff = input$adjust_coeff)
+  })
   partic <- eventReactive(input$submit, {
-    recreate(read.csv(input$partic$datapath), info())
+    recreate(read.csv(input$partic$datapath), info_new())
   })
   subpartic <- eventReactive(input$submit, {
     partic()[apply(!is.na(partic()[, 8:ncol(partic())]), 1, sum) >= 7, ]
@@ -151,10 +157,10 @@ server <- function(input,output) {
   output$plotik <- renderPlot({ 
     if(is.null(input$partic)){return()}
     else {
-    draw.clusters(info())
+    draw.clusters(info_new())
     if (input$txtokno != '') {
       channel.clusts <- table(subpartic()[medium.ind(), 3])
-      points(info()[medium.ind(), tail(1:dim(info())[2], 2)], col = 'red', 
+      points(info_new()[medium.ind(), tail(1:dim(info_new())[2], 2)], col = 'red', 
              cex = 1.5, pch = 19)
       legend('topleft', 
              legend = c(paste(str_to_title(input$txtokno), 'users'),
@@ -165,6 +171,19 @@ server <- function(input,output) {
              col = c('red', rep(NA, length(channel.clusts))))
       }
     }
+  })
+  
+  # Renders the cluster plot with adjusted PCA
+  output$adjusted_plot <- renderPlot({ 
+    if(is.null(input$partic)){return()}
+    else {
+      df_recalculated = polis.clust(clean(read.csv(input$partic$datapath)), 
+                                    force = NA, boosted = T, 
+                                    comment_id = input$comm_id_adjust,
+                                    coeff = input$adjust_coeff)
+      
+      draw.clusters(df_recalculated)
+      }
   })
   
   output$media <- renderUI({
@@ -195,7 +214,13 @@ server <- function(input,output) {
     if(is.null(input$partic) | is.null(input$comms)) {return()}
     else
       tabsetPanel(
-        tabPanel("Cluster graph", plotOutput("plotik")),
+        tabPanel("Cluster graph", 
+                 selectInput('comm_id_adjust', 'Select comment did to adjust:', 
+                             choices = read.csv(input$comms$datapath, encoding = 'UTF-8')$comment.id,
+                             selected = input$comm_id_adjust),
+                 numericInput('adjust_coeff', 'Select adjustment multiplier', value = input$adjust_coeff, 
+                              min = 1),
+                 plotOutput("plotik")),
         
         tabPanel("Consensual comments", 
                  selectInput('consens', 'Select comment to draw:',

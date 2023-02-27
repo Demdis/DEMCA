@@ -92,7 +92,8 @@ clean_proj <- function(df) {
   return(vote_mat)
 }
 
-polis.clust <- function(vote, force = NA) {
+polis.clust <- function(vote, force = NA, boosted = F,
+                        comment_id = 0, coeff = 10) {
   # Impute vote matrix data, perform PCA to 2D and cluster voters by kmeans 
   # algorithm into best number of clusters (force = NA) or force k
   
@@ -100,7 +101,8 @@ polis.clust <- function(vote, force = NA) {
   for (i in 1:ncol(vote)) {
     vote[is.na(vote[, i]), i] <- mean(vote[, i], na.rm = T)
   }
-  pr <- prcomp(vote)$x[, 1:2]
+  if (boosted) pr <- boosted_pca(vote, comment_id, coeff)
+  else pr <- prcomp(vote)$x[, 1:2]
   pts <- pr * sqrt(ncol(vote) / ans)
   if (is.na(force)) {
     k <- rep(NA, 30)
@@ -163,3 +165,15 @@ comms.custom <- function(partic, comms, ind) {
   return(list(clust = df))
 }
 
+
+boosted_pca <- function(votes, comment_id, coeff) {
+  # Boosts effect of a given comment in PCA; effect multiplied by coeff
+  pca <- prcomp(votes)
+  components <- pca$rotation[, 1:2]
+  index <- paste("X", comment_id, sep="")
+  components[rownames(components) == index] <- components[
+    rownames(components) == index, ] * coeff  
+  centered_dats <- sweep(votes, 2, colMeans(votes))
+  pr <- as.matrix(centered_dats) %*% components
+  return(pr)
+}
