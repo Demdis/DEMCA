@@ -24,11 +24,24 @@ ui <- fluidPage(
 
 server <- function(input,output) {
   # Runs PolisV2 backend upon hitting the submit button
-  info <- eventReactive(input$submit, {
-    polis.clust(clean(read.csv(input$partic$datapath)))
+  main_data <- eventReactive(input$submit, {
+    polis.clust(clean(read.csv(input$partic$datapath)), 
+                boosted = TRUE, 
+                force = input$force_clusters,
+                comment_id = input$comm_id_adjust,
+                coeff = input$adjust_coeff)
+  })
+  num_clusters <- eventReactive(input$submit, {
+    input$force_clusters
+  })
+  adjusted_comm <- eventReactive(input$submit, {
+    input$comm_id_adjust
+  })
+  adjusting_coeff <- eventReactive(input$submit, {
+    input$adjust_coeff
   })
   partic <- eventReactive(input$submit, {
-    recreate(read.csv(input$partic$datapath), info())
+    recreate(read.csv(input$partic$datapath), main_data())
   })
   subpartic <- eventReactive(input$submit, {
     partic()[apply(!is.na(partic()[, 8:ncol(partic())]), 1, sum) >= 7, ]
@@ -151,10 +164,11 @@ server <- function(input,output) {
   output$plotik <- renderPlot({ 
     if(is.null(input$partic)){return()}
     else {
-    draw.clusters(info())
+    print(input$adjust_coeff)
+    draw.clusters(main_data())
     if (input$txtokno != '') {
       channel.clusts <- table(subpartic()[medium.ind(), 3])
-      points(info()[medium.ind(), tail(1:dim(info())[2], 2)], col = 'red', 
+      points(main_data()[medium.ind(), tail(1:dim(main_data())[2], 2)], col = 'red', 
              cex = 1.5, pch = 19)
       legend('topleft', 
              legend = c(paste(str_to_title(input$txtokno), 'users'),
@@ -166,6 +180,16 @@ server <- function(input,output) {
       }
     }
   })
+  
+  output$settings <- renderText({
+    paste("<h3>", "Current settings:", "</h3>",
+          "<h5>", "Number of clusters: ", num_clusters(), "</h5>",
+          "<h5>", "Adjusted comment: ", adjusted_comm(), "</h5>",
+          "<h5>", "Adjusting coefficient: ", adjusting_coeff(), "</h5>",
+          sep = '')
+  })
+  
+  # Renders the cluster plot with adjusted PCA
   
   output$media <- renderUI({
     if(is.null(input$partic) | is.null(input$comms) | is.null(all())) {return()}
@@ -195,7 +219,15 @@ server <- function(input,output) {
     if(is.null(input$partic) | is.null(input$comms)) {return()}
     else
       tabsetPanel(
-        tabPanel("Cluster graph", plotOutput("plotik")),
+        tabPanel("Cluster graph",
+                 selectInput("force_clusters", "Manually force number of clusters:",
+                             choices = c("Auto", "1", "2", "3", "4"), selected = "Auto"),
+                 selectInput('comm_id_adjust', 'Select comment did to adjust:', 
+                             choices = read.csv(input$comms$datapath, encoding = 'UTF-8')$comment.id),
+                 numericInput('adjust_coeff', 'Select adjustment multiplier', 
+                              value = 1, min = 1),
+                 htmlOutput("settings"),
+                 plotOutput("plotik")),
         
         tabPanel("Consensual comments", 
                  selectInput('consens', 'Select comment to draw:',

@@ -92,45 +92,42 @@ clean_proj <- function(df) {
   return(vote_mat)
 }
 
-polis.clust <- function(vote, force = NA) {
+polis.clust <- function(vote, force = "Auto", boosted = F,
+                        comment_id = 0, coeff) {
   # Impute vote matrix data, perform PCA to 2D and cluster voters by kmeans 
   # algorithm into best number of clusters (force = NA) or force k
   
+  # Get number of clusters
+  if (length(force) == 0) num_clusters_forced <- NA
+  else if (force == "Auto") num_clusters_forced <- NA
+  else num_clusters_forced <- as.integer(force)
+  
+  # Impute vote matrix
   ans <- apply(!is.na(vote), 1, sum)
   for (i in 1:ncol(vote)) {
     vote[is.na(vote[, i]), i] <- mean(vote[, i], na.rm = T)
   }
-  pr <- prcomp(vote)$x[, 1:2]
+  
+  # Calculate PCA points
+  if (boosted) pr <- boosted_pca(vote, comment_id, coeff)
+  else pr <- prcomp(vote)$x[, 1:2]
+  
+  # Scale PCA points
   pts <- pr * sqrt(ncol(vote) / ans)
-  if (is.na(force)) {
-    k <- rep(NA, 30)
-    for (i in 1:30) {
-      lloyd <- kmeans(pts, min(100,  as.data.frame(pts) %>% distinct %>% nrow),
-                      algorithm = 'Lloyd')
-      k[i] <- tryCatch({which.max(fviz_nbclust(lloyd$centers, kmeans)$data$y[1:5])
-      }, error = function(e){cat("ERROR :",conditionMessage(e), "\n")
-                             return(NA)})
-      rm(.Random.seed, envir = globalenv())
-    }
-    k <- as.numeric(dimnames(table(k))$k[which.max(table(k))])
+  
+  if (is.na(num_clusters_forced)) {
+    
+    k = which.max(fviz_nbclust(pts, kmeans)$data$y)
+    if (k >= 4) k <- 4
     print(paste('Optimal number of clusters determined as ', k, '.', sep = ''))
-    lloyd <- kmeans(pts, min(100,  as.data.frame(pts) %>% distinct %>% nrow), 
-                    algorithm = 'Lloyd')
-    temp <- cbind(lloyd$centers, 1:min(100,  as.data.frame(pts) %>% distinct %>% nrow))
-    kms <- kmeans(temp[, 1:2], k)
-    temp <- data.frame(ll.cl = temp[, 3], cl = kms$cluster)
-    cl <- left_join(data.frame(ll.cl = lloyd$cluster), temp)
-    vote$cluster <- cl$cl
+    kms <- kmeans(pts, centers = k, nstart = 30)
+    vote$cluster <- kms$cluster
   }
   else {
-    print(paste('Optimal number of clusters forced as ', force, '.', sep = ''))
-    lloyd <- kmeans(pts, min(100,  as.data.frame(pts) %>% distinct %>% nrow), 
-                    algorithm = 'Lloyd')
-    temp <- cbind(lloyd$centers, 1:min(100,  as.data.frame(pts) %>% distinct %>% nrow))
-    kms <- kmeans(temp[, 1:2], force)
-    temp <- data.frame(ll.cl = temp[, 3], cl = kms$cluster)
-    cl <- left_join(data.frame(ll.cl = lloyd$cluster), temp)
-    vote$cluster <- cl$cl
+    k <- num_clusters_forced
+    print(paste('Optimal number of clusters forced as ', k, '.', sep = ''))
+    kms <- kmeans(pts, centers = k, nstart = 30)
+    vote$cluster <- kms$cluster
   }
   return(cbind(vote, pts)) 
 }
@@ -162,4 +159,18 @@ comms.custom <- function(partic, comms, ind) {
   df <- df %>% mutate(agr_pct = round(n.agr / (n.agr + n.dis), 3))
   return(list(clust = df))
 }
+
+
+boosted_pca <- function(votes, comment_id, coeff) {
+  # Boosts effect of a given comment in PCA; effect multiplied by coeff
+  pca <- prcomp(votes)
+  components <- pca$rotation[, 1:2]
+  index <- paste("X", comment_id, sep="")
+  components[rownames(components) == index] <- components[
+    rownames(components) == index, ] * coeff  
+  centered_dats <- sweep(votes, 2, colMeans(votes))
+  pr <- as.matrix(centered_dats) %*% components
+  return(pr)
+}
+
 
