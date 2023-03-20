@@ -67,7 +67,7 @@ server <- function(input,output) {
     if(is.null(input$partic) | is.null(input$comms)) {return ()}
     else {
       return(all()$points %>% filter(comment.id %in% gud()) %>% 
-               arrange(desc(mk)) %>% head(n = 8))
+               arrange(desc(mk)) %>% head(n = 15))
     }
   })
   
@@ -88,7 +88,7 @@ server <- function(input,output) {
   output$consensus <- renderTable({
     if(is.null(input$partic) | is.null(input$comms)) {return ()}
     else {
-      return(all()$points %>% arrange(desc(body)) %>% head(n = 8))
+      return(all()$points %>% arrange(desc(body)) %>% head(n = 15))
     }
   })
   
@@ -232,7 +232,7 @@ server <- function(input,output) {
         tabPanel("Consensual comments", 
                  selectInput('consens', 'Select comment to draw:',
                              choices = all()$points %>% 
-                               arrange(desc(body)) %>% head(n = 8) %>% 
+                               arrange(desc(body)) %>% head(n = 15) %>% 
                                select(comment.id)),
                  tableOutput("consensus"),
                  htmlOutput('consenstext'),
@@ -242,7 +242,7 @@ server <- function(input,output) {
                  selectInput('polar', 'Select comment to draw:', 
                              choices = all()$points %>% arrange(desc(mk)) %>% 
                                filter(comment.id %in% gud()) %>% 
-                               head(n = 8) %>% select(comment.id)), 
+                               head(n = 15) %>% select(comment.id)), 
                  tableOutput('polarized'),
                  htmlOutput('polartext'),
                  plotOutput('polarplot')),
