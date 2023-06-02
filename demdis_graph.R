@@ -43,13 +43,13 @@ draw.graph <- function(all, id, group, custom = '') {
   if (custom != '') text(0, 0.8, paste(str_to_title(custom), 'users'), adj = 0, 
                          cex = 2)
   else text(0, 0.8, paste('Skupina', LETTERS[group]), adj = 0, cex = 2)
-  text(0, -0.5, paste(round(100 * with(one, n.agr / total), 1), ' % (', 
+  text(0, -0.5, paste(round(100 * with(one, n.agr / (n.agr + n.dis + n.skip)), 1), ' % (', 
                       one$n.agr, ') za', sep = ''), 
        col = '#08A608', adj = 0, cex = 2)
-  text(0, -0.9, paste(round(100 * with(one, n.dis / total), 1), ' % (', 
+  text(0, -0.9, paste(round(100 * with(one, n.dis / (n.agr + n.dis + n.skip)), 1), ' % (', 
                       one$n.dis, ') proti', sep = ''), 
        col = '#A60808', adj = 0, cex = 2)
-  text(0, -1.3, paste(round(100 * with(one, n.skip / total), 1), ' % (', 
+  text(0, -1.3, paste(round(100 * with(one, n.skip / (n.agr + n.dis + n.skip)), 1), ' % (', 
                       one$n.skip, ') preskočilo', sep = ''), 
        col = '#AAAAAA', adj = 0, cex = 2)
   text(0, -1.7, paste(round(100 * with(one, unseen / total), 1), ' % (', 
